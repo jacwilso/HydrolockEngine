@@ -1,0 +1,26 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build with Clang",
+        "type": "shell",
+        "command": "clang++",
+        "args": [
+          "-std=c++17",
+          "-stdlib=libc++",
+          "-I/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include",
+          "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib/libvulkan.1.1.126.dylib",
+          "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib/libvulkan.1.dylib",
+          "/usr/local/lib/libglfw.3.4.dylib",
+          "main.cpp",
+          "-o",
+          "main.out",
+          "--debug"
+        ],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        }
+      }
+    ]
+  }
