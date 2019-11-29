@@ -8,19 +8,36 @@
         "args": [
           "-std=c++17",
           "-stdlib=libc++",
+          // Includes
           "-I/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include",
+          // Runtime Path
+          "-rpath", "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib",
+          // Link Libraries
           "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib/libvulkan.1.1.126.dylib",
           "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib/libvulkan.1.dylib",
           "/usr/local/lib/libglfw.3.4.dylib",
-          "main.cpp",
+          // Compile
+          "*.cpp",
           "-o",
           "main.out",
-          "--debug"
+          "--debug",
+          // Defines
+          "-DVK_LAYER_PATH=/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/etc/vulkan/explicit_layer.d",
+          "-DDEBUG",
+          "-DDEBUG_RENDERER"
         ],
         "group": {
           "kind": "build",
           "isDefault": true
-        }
+        },
+        "dependsOn": [
+          "compile_shaders"
+        ]
+      },
+      {
+        "label": "compile_shaders",
+        "type": "shell",
+        "command": "Shaders/compile.sh",
       }
     ]
   }

@@ -4,21 +4,14 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include",
-                "/usr/local/include"
+                "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include"
             ],
             "defines": [
                 "VERSION=1",
-                "VK_ICD_FILENAMES=/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/etc/vulkan/icd.d/MoltenVK_icd.json",
-                "VK_LAYER_PATH=/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/etc/vulkan/explicit_layer.d"
+                "DEBUG",
+                "DEBUG_RENDERER"
             ],
-            "macFrameworkPath": [
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/System/Library/Frameworks",
-                "/System/Library/Frameworks",
-                "/Library/Frameworks",
-                "/usr/local/lib",
-                "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib"
-            ],
+            "macFrameworkPath": [],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c11",
             "cppStandard": "c++17",
