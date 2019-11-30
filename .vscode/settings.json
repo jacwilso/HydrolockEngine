@@ -4,6 +4,9 @@
         "algorithm": "cpp",
         "complex": "cpp",
         "new": "cpp",
-        "istream": "cpp"
+        "istream": "cpp",
+        "cwctype": "cpp",
+        "__node_handle": "cpp",
+        "vector": "cpp"
     }
 }

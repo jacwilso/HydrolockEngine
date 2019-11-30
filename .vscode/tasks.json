@@ -9,6 +9,7 @@
           "-std=c++17",
           "-stdlib=libc++",
           // Includes
+          "-I.",
           "-I/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include",
           // Runtime Path
           "-rpath", "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib",
@@ -18,6 +19,7 @@
           "/usr/local/lib/libglfw.3.4.dylib",
           // Compile
           "*.cpp",
+          "Math/*.cpp",
           "-o",
           "main.out",
           "--debug",
