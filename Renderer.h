@@ -33,8 +33,9 @@ private:
     VkImage* m_swapChainImages;
     VkImageView* m_swapChainImageViews;
     // Pipeline
-    VkRenderPass m_renderPass;
+    VkDescriptorSetLayout m_descriptorLayout;
     VkPipelineLayout m_pipelineLayout;
+    VkRenderPass m_renderPass;
     VkPipeline m_pipeline;
     // Buffers
     VkFramebuffer* m_swapChainFramebuffers;
@@ -43,10 +44,12 @@ private:
     VkCommandPool m_transferCommandPool;
 #endif
     VkCommandBuffer* m_commandBuffers;
-    VkBuffer m_vertexBuffer;
-    VkDeviceMemory m_vertexBufferMemory;
-    // VkBuffer m_indexBuffer;
-    // VkDeviceMemory m_indexBufferMemory;
+    VkBuffer m_vertexIndexBuffer;
+    VkDeviceMemory m_vertexIndexBufferMemory;
+    VkBuffer* m_uniformBuffers;
+    VkDeviceMemory* m_uniformBuffersMemory;
+    VkDescriptorPool m_descriptorPool;
+    VkDescriptorSet* m_descriptorSets;
     // Synchronization
     VkSemaphore* m_imageAcquired;
     VkSemaphore* m_renderCompleted;
@@ -57,6 +60,7 @@ private:
     void init();
     void mainLoop();
     void render();
+    void update(uint32_t currentImage);
     void cleanup();
 
     void createVulkanInstance();

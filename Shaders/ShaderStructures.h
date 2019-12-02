@@ -1,5 +1,6 @@
 #include "Math/vec2.h"
 #include "Math/vec3.h"
+#include "Math/mat4.h"
 
 struct Vertex {
 private:
@@ -32,4 +33,10 @@ public:
         Vertex::attribDesc[1].offset = offsetof(Vertex, color);
         return Vertex::attribDesc;
     }
+};
+
+struct UniformBufferObject
+{
+    mat4 modelViewProjection;
+    float time;
 };
