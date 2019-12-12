@@ -1,1 +1,2 @@
 - Move function call asserts to pass in result
+- GLFW + vulkan into middleware

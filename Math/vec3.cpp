@@ -2,16 +2,16 @@
 
 #include <cstring>
 
-vec3::vec3(float val)
+vec3::vec3() : x(0), y(0), z(0)
 {
-    x = y = z = val;
 }
 
-vec3::vec3(float x, float y, float z)
+vec3::vec3(float val) : x(val), y(val), z(val)
 {
-    this->x = x;
-    this->y = y;
-    this->z = z;
+}
+
+vec3::vec3(float x, float y, float z) : x(x), y(y), z(z)
+{
 }
 
 vec3::vec3(float data[3])

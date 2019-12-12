@@ -141,12 +141,13 @@ mat4 mat4::eulerRotation(float roll, float yaw, float pitch)
             0.0f,    0.0f,                   0.0f,                   1.0f};
 }
 
+// CCW & Depth 0 to 1
 mat4 mat4::projection(float fovy, float aspect, float znear, float zfar)
 {
     float f = 1.0f / tan(0.5f * fovy);
     float z = 1.0f / (znear - zfar);
-    return {f / aspect, 0.0f, 0.0f,                    0.0f,
-            0.0f,       -f,   0.0f,                    0.0f,
-            0.0f,       0.0f, (znear + zfar) * z,      -1.0f,
-            0.0f,       0.0f, 2.0f * znear * zfar * z, 0.0f};
+    return {f / aspect, 0.0f, 0.0f,             0.0f,
+            0.0f,       -f,   0.0f,             0.0f,
+            0.0f,       0.0f, zfar * z,         -1.0f,
+            0.0f,       0.0f, znear * zfar * z, 0.0f};
 }

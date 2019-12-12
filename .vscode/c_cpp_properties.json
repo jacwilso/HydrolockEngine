@@ -4,7 +4,8 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include"
+                "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include",
+                "/Users/jacwilso/Documents/imgui"
             ],
             "defines": [
                 "VERSION=1",

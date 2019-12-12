@@ -1,11 +1,11 @@
 #include <iostream>
 
-#include "Renderer.h"
+#include "Engine.h"
 
 int main()
 {
-    Renderer renderer;
-    renderer.run();
+    Engine engine;
+    engine.run();
 
     return EXIT_SUCCESS;
 }

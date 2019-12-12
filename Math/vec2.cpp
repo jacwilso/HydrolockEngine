@@ -2,15 +2,16 @@
 
 #include <cstring>
 
-vec2::vec2(float val)
+vec2::vec2() : x(0), y(0) 
 {
-    x = y = val;
 }
 
-vec2::vec2(float x, float y)
+vec2::vec2(float val) : x(val), y(val)
 {
-    this->x = x;
-    this->y = y;
+}
+
+vec2::vec2(float x, float y) : x(x), y(y)
+{
 }
 
 vec2::vec2(float data[2])

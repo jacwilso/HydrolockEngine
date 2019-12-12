@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "Utilities.h"
+#include "Defines.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -130,6 +130,10 @@ SwapChainSupportDetails querySwapChainSupport(const VkPhysicalDevice& device, co
 
 bool isDeviceSutiable(const VkPhysicalDevice& device, const VkSurfaceKHR& surface)
 {
+    VkPhysicalDeviceFeatures supportedFeatures;
+    vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+    if (!supportedFeatures.samplerAnisotropy) return false; // TODO: Enum properties
+
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
     VkExtensionProperties availableExtensions[extensionCount];
@@ -242,6 +246,32 @@ uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, Vk
     assert( false && "Failed to find suitable memory type" );
 }
 
+VkFormat findSupportedFormat(VkPhysicalDevice physicalDevice, VkFormat* const candidates, uint32_t candidateCount, VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+    for (int i = 0; i < candidateCount; ++i)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, candidates[i], &props);
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) return candidates[i];
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) return candidates[i];
+    }
+    assert( false && "Failed to find supported format");
+    return VK_FORMAT_UNDEFINED;
+}
+
+VkFormat findDepthFormat(VkPhysicalDevice physicalDevice)
+{
+    VkFormat depthFormats[] = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT};
+    return findSupportedFormat(physicalDevice, 
+        depthFormats, sizeof(depthFormats) / sizeof(VkFormat),
+        VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+bool hasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
 void createBuffer(VkDevice device,
                   VkPhysicalDevice physicalDevice,
                   VkDeviceSize size, 
@@ -275,7 +305,7 @@ void createBuffer(VkDevice device,
     vkBindBufferMemory(device, buffer, bufferMemory, 0); // TODO: should I assert on != success?
 }
 
-void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer src, VkBuffer dst, VkDeviceSize size)
+VkCommandBuffer beginCommandBuffer(VkDevice device, VkCommandPool commandPool)
 {
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -291,11 +321,11 @@ void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkBuf
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(cmdBuffer, &beginInfo);
 
-    VkBufferCopy copy = {};
-    copy.srcOffset = 0;
-    copy.dstOffset = 0;
-    copy.size = size;
-    vkCmdCopyBuffer(cmdBuffer, src, dst, 1, &copy);
+    return cmdBuffer;
+}
+
+void endCommandBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer cmdBuffer)
+{
     vkEndCommandBuffer(cmdBuffer);
 
     VkSubmitInfo submitInfo = {};
@@ -306,4 +336,137 @@ void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkBuf
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue); // TODO: use a fence to schedule multiple transfers
     vkFreeCommandBuffers(device, commandPool, 1, &cmdBuffer);
+}
+
+void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer src, VkBuffer dst, VkDeviceSize size)
+{
+    VkCommandBuffer cmdBuffer = beginCommandBuffer(device, commandPool);
+
+    VkBufferCopy copy = {};
+    copy.srcOffset = 0;
+    copy.dstOffset = 0;
+    copy.size = size;
+    vkCmdCopyBuffer(cmdBuffer, src, dst, 1, &copy);
+
+    endCommandBuffer(device, commandPool, queue, cmdBuffer);
+}
+
+void copyImage(VkDevice device, VkCommandPool commandPool, VkQueue queue, 
+    VkBuffer texBuffer, VkImage image, uint32_t width, uint32_t height, VkFormat format)
+{
+    // TODO: combine operations into single command buffer + execute async (setupCmdBuffer + flushCmdBuffer)
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    // Transition CPU Write
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    
+    VkCommandBuffer cmdBuffer = beginCommandBuffer(device, commandPool);
+    vkCmdPipelineBarrier(cmdBuffer, 
+        srcStage, dstStage, 
+        0, 
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+    endCommandBuffer(device, commandPool, queue, cmdBuffer);
+
+    // Copy Image
+    VkBufferImageCopy region = {};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = { 0, 0, 0 };
+    region.imageExtent = { width, height, 1 };
+
+    cmdBuffer = beginCommandBuffer(device, commandPool);
+    vkCmdCopyBufferToImage(cmdBuffer, texBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    endCommandBuffer(device, commandPool, queue, cmdBuffer);
+
+    // Transition GPU Read
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+    cmdBuffer = beginCommandBuffer(device, commandPool);
+    vkCmdPipelineBarrier(cmdBuffer, 
+        srcStage, dstStage, 
+        0, 
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+    endCommandBuffer(device, commandPool, queue, cmdBuffer);
+}
+
+void createImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, 
+                VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+                VkImage& image, VkDeviceMemory& memory)
+{
+    VkImageCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    createInfo.imageType = VK_IMAGE_TYPE_2D;
+    createInfo.extent.width = width;
+    createInfo.extent.height = height;
+    createInfo.extent.depth = 1;
+    createInfo.mipLevels = 1;
+    createInfo.arrayLayers = 1;
+    createInfo.format = format;
+    createInfo.tiling = tiling;
+    createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    createInfo.usage = usage;
+    createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    createInfo.flags = 0;
+    assert( vkCreateImage(device, &createInfo, nullptr, &image) == VK_SUCCESS );
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(device, image, &memoryRequirements);
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memoryRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(physicalDevice, memoryRequirements.memoryTypeBits, properties);
+    assert( vkAllocateMemory(device, &allocInfo, nullptr, &memory) == VK_SUCCESS );
+    vkBindImageMemory(device, image, memory, 0);
+}
+
+void createImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect, VkImageView& view)
+{
+    VkImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewCreateInfo.image = image;
+    viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewCreateInfo.format = format;
+    
+    viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    
+    viewCreateInfo.subresourceRange.aspectMask = aspect;
+    viewCreateInfo.subresourceRange.baseMipLevel = 0;
+    viewCreateInfo.subresourceRange.levelCount = 1;
+    viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    viewCreateInfo.subresourceRange.layerCount = 1;
+
+    assert( vkCreateImageView(device, &viewCreateInfo, nullptr, &view) == VK_SUCCESS );
 }

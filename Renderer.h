@@ -3,16 +3,11 @@
 
 #include <vulkan/vulkan.h> // TODO: forward declare
 
-struct GLFWwindow;
-
 class Renderer {
 public:
-    void run();
+    float angle = 0; // TODO: remove
 
 private:
-    GLFWwindow* m_window;
-    int m_windowWidth, m_windowHeight;
-
     // Instance
     VkInstance m_instance;
     VkDebugUtilsMessengerEXT m_debugMessenger;
@@ -44,12 +39,23 @@ private:
     VkCommandPool m_transferCommandPool;
 #endif
     VkCommandBuffer* m_commandBuffers;
+
+    VkImage m_depthImage;
+    VkDeviceMemory m_depthImageMemory;
+    VkImageView m_depthImageView;
+
     VkBuffer m_vertexIndexBuffer;
     VkDeviceMemory m_vertexIndexBufferMemory;
+    
     VkBuffer* m_uniformBuffers;
     VkDeviceMemory* m_uniformBuffersMemory;
     VkDescriptorPool m_descriptorPool;
     VkDescriptorSet* m_descriptorSets;
+    
+    VkImage m_texImage;
+    VkDeviceMemory m_texImageMemory;
+    VkImageView m_texImageView;
+    VkSampler m_texSampler;
     // Synchronization
     VkSemaphore* m_imageAcquired;
     VkSemaphore* m_renderCompleted;
@@ -58,8 +64,7 @@ private:
     size_t m_currentFrame;
 
     void init();
-    void mainLoop();
-    void render();
+    void update();
     void update(uint32_t currentImage);
     void cleanup();
 
@@ -71,6 +76,8 @@ private:
 
     void recreateVulkanSwapChain();
     void cleanupVulkanSwapChain();
+
+    friend class Engine;
 };
 
 #endif /* RENDERER_H */
@@ -79,4 +86,5 @@ private:
 /* TODO:
 * overload std::shared_ptr using RAII (Base Code)
 * custom allocator
+* https://vulkan-tutorial.com/Loading_models
 */

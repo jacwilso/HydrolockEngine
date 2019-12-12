@@ -9,6 +9,7 @@ public:
         float data[2];
     };
 
+    vec2();
     vec2(float val);
     vec2(float x, float y);
     vec2(float data[2]);

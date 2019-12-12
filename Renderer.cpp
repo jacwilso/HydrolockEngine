@@ -5,48 +5,48 @@
 #include <chrono>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <Middleware/stb_image.h>
 
-#include "Utilities.h"
+// #define GLM_FORCE_RADIANS
+// #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+// #include <glm/glm.hpp>
+// #include <glm/gtc/matrix_transform.hpp>
+
+#include "Engine.h"
+#include "Window.h"
+#include "Defines.h"
 #include "Shaders/ShaderStructures.h"
-#include "GLFWUtilities.h"
 #include "VulkanUtilities.h"
 
 const Vertex vertices[] =
 {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-    {{ 0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-    {{ 0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f,  0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+    {{ 0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+    {{ 0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+    {{-0.5f,  0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+
+    {{-0.25f, -0.25f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+    {{ 0.75f, -0.25f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+    {{ 0.75f,  0.75f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+    {{-0.25f,  0.75f, 0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
 };
 
-const uint16_t indices[] = { 0, 1, 2, 2, 3, 0 };
+const uint16_t indices[] = { 
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4,
+};
+
+bool framebufferResized = false; // TODO: remove
 
 // RENDERER
-void Renderer::run()
-{
-    init();
-    mainLoop();
-    cleanup();
-}
-
 void Renderer::init()
 {
-    /// GLFW
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    
-    m_windowWidth = 800;
-    m_windowHeight = 600;
-    m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, "Bending", nullptr, nullptr); // TODO: full screen only
-    glfwSetWindowUserPointer(m_window, this);
-    glfwSetFramebufferSizeCallback(m_window, framebufferResizeCallback);
-    
     /// VULKAN
     createVulkanInstance();
 
     // Surface
-    assert( glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) == VK_SUCCESS );
+    assert( glfwCreateWindowSurface(m_instance, Engine::m_window.Get(), nullptr, &m_surface) == VK_SUCCESS );
 
     createVulkanDevice();
     createVulkanSwapChain();
@@ -204,6 +204,7 @@ void Renderer::createVulkanDevice()
     queueCreateInfo.pQueuePriorities = &queuePriority;
 
     VkPhysicalDeviceFeatures deviceFeatures = {};
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.queueCreateInfoCount = 1;
@@ -229,7 +230,7 @@ void Renderer::createVulkanSwapChain()
     VkSurfaceFormatKHR surfaceFormat = selectSwapSurfaceFormat(swapChainSupport.formats, swapChainSupport.formatCount);
     VkPresentModeKHR presentMode = selectSwapPresentMode(swapChainSupport.presentModes, swapChainSupport.presentModeCount);
     int frameWidth, frameHeight;
-    glfwGetFramebufferSize(m_window, &frameWidth, &frameHeight); // TODO: should I be updating the window size here too?
+    glfwGetFramebufferSize(Engine::m_window.Get(), &frameWidth, &frameHeight); // TODO: should I be updating the window size here too?
     VkExtent2D extent = selectSwapExtent(swapChainSupport.capabilities, frameWidth, frameHeight);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
@@ -285,24 +286,7 @@ void Renderer::createVulkanSwapChain()
     m_swapChainImageViews = new VkImageView[m_swapChainImageCount];
     for (int i = 0; i < m_swapChainImageCount; ++i)
     {
-        VkImageViewCreateInfo viewCreateInfo = {};
-        viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewCreateInfo.image = m_swapChainImages[i];
-        viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewCreateInfo.format = surfaceFormat.format;
-        
-        viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        
-        viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewCreateInfo.subresourceRange.baseMipLevel = 0;
-        viewCreateInfo.subresourceRange.levelCount = 1;
-        viewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        viewCreateInfo.subresourceRange.layerCount = 1;
-
-        assert( vkCreateImageView(m_device, &viewCreateInfo, nullptr, &m_swapChainImageViews[i]) == VK_SUCCESS );
+        createImageView(m_device, m_swapChainImages[i], surfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, m_swapChainImageViews[i]);
     }
 }
 
@@ -352,10 +336,18 @@ void Renderer::createVulkanPipeline()
     uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     uboLayoutBinding.pImmutableSamplers = nullptr;
 
+    VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
+    samplerLayoutBinding.binding = 1;
+    samplerLayoutBinding.descriptorCount = 1;
+    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutBinding bindings[] = { uboLayoutBinding, samplerLayoutBinding };
     VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {};
     layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutCreateInfo.bindingCount = 1;
-    layoutCreateInfo.pBindings = &uboLayoutBinding;
+    layoutCreateInfo.bindingCount = sizeof(bindings) / sizeof(VkDescriptorSetLayoutBinding);
+    layoutCreateInfo.pBindings = bindings;
     assert( vkCreateDescriptorSetLayout(m_device, &layoutCreateInfo, nullptr, &m_descriptorLayout) == VK_SUCCESS );
 
     // Viewport + Scissor
@@ -384,6 +376,7 @@ void Renderer::createVulkanPipeline()
     rasterizerCreateInfo.depthClampEnable = VK_FALSE;
     rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;
     rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL; // TODO: wireframe possibility
+    // rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_LINE;
     rasterizerCreateInfo.lineWidth = 1.0f; // > 1.0f requires wideLines
     rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizerCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -403,7 +396,15 @@ void Renderer::createVulkanPipeline()
     multisampleCreateInfo.alphaToOneEnable = VK_FALSE;
 
     // Depth + Stencil
-    // VkPipelineDepthStencilStateCreateInfo
+    VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo = {};
+    depthStencilCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencilCreateInfo.depthTestEnable = VK_TRUE;
+    depthStencilCreateInfo.depthWriteEnable = VK_TRUE;
+    depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencilCreateInfo.depthBoundsTestEnable = VK_FALSE;
+    depthStencilCreateInfo.minDepthBounds = 0.0f;
+    depthStencilCreateInfo.maxDepthBounds = 1.0f;
+    depthStencilCreateInfo.stencilTestEnable = VK_FALSE; // TODO: Stencil
 
     VkPipelineColorBlendAttachmentState blendAttachment = {};
     blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
@@ -462,10 +463,25 @@ void Renderer::createVulkanPipeline()
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription depthAttachmentDesc = {};
+    depthAttachmentDesc.format = findDepthFormat(m_physicalDevice); // TODO: why call this twice
+    depthAttachmentDesc.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachmentDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachmentDesc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef = {};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpassDesc = {};
     subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpassDesc.colorAttachmentCount = 1;
     subpassDesc.pColorAttachments = &colorAttachmentRef;
+    subpassDesc.pDepthStencilAttachment = &depthAttachmentRef;
 
     VkSubpassDependency subpassDependency = {};
     subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -476,10 +492,12 @@ void Renderer::createVulkanPipeline()
     subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
                                       VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
+    // VkAttachmentDescription attachments[] = { colorAttachmentDesc };
+    VkAttachmentDescription attachments[] = { colorAttachmentDesc, depthAttachmentDesc };
     VkRenderPassCreateInfo renderPassCreateInfo = {};
     renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassCreateInfo.attachmentCount = 1;
-    renderPassCreateInfo.pAttachments = &colorAttachmentDesc;
+    renderPassCreateInfo.attachmentCount = sizeof(attachments) / sizeof(VkAttachmentDescription);
+    renderPassCreateInfo.pAttachments = attachments;
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpassDesc;
     renderPassCreateInfo.dependencyCount = 1;
@@ -496,7 +514,8 @@ void Renderer::createVulkanPipeline()
     pipelineCreateInfo.pViewportState = &viewportCreateInfo;
     pipelineCreateInfo.pRasterizationState = &rasterizerCreateInfo;
     pipelineCreateInfo.pMultisampleState = &multisampleCreateInfo;
-    pipelineCreateInfo.pDepthStencilState = nullptr;
+    // pipelineCreateInfo.pDepthStencilState = nullptr;
+    pipelineCreateInfo.pDepthStencilState = &depthStencilCreateInfo;
     pipelineCreateInfo.pColorBlendState = &blendCreateInfo;
     pipelineCreateInfo.pDynamicState = nullptr;
 
@@ -515,16 +534,24 @@ void Renderer::createVulkanPipeline()
 
 void Renderer::createVulkanBuffers()
 {
+    // Depth Image
+    VkFormat depthFormat = findDepthFormat(m_physicalDevice);
+    createImage(m_device, m_physicalDevice, m_swapChainExtent.width, m_swapChainExtent.height, 
+        depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        m_depthImage, m_depthImageMemory);
+    createImageView(m_device, m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, m_depthImageView);
+
     // Framebuffer
     m_swapChainFramebuffers = new VkFramebuffer[m_swapChainImageCount];
     for (int i = 0; i < m_swapChainImageCount; ++i)
     {
-        VkImageView attachments[] = { m_swapChainImageViews[i] };
+        // VkImageView attachments[] = { m_swapChainImageViews[i] };
+        VkImageView attachments[] = { m_swapChainImageViews[i], m_depthImageView };
 
         VkFramebufferCreateInfo framebufferCreateInfo = {};
         framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferCreateInfo.renderPass = m_renderPass;
-        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.attachmentCount = sizeof(attachments) / sizeof(VkImageView);
         framebufferCreateInfo.pAttachments = attachments;
         framebufferCreateInfo.width = m_swapChainExtent.width;
         framebufferCreateInfo.height = m_swapChainExtent.height;
@@ -533,20 +560,70 @@ void Renderer::createVulkanBuffers()
         assert( vkCreateFramebuffer(m_device, &framebufferCreateInfo, nullptr, &m_swapChainFramebuffers[i]) == VK_SUCCESS );
     }
 
-    // Vertex + Index Buffer
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
+    void* data;
+    const int BufferMemoryProperty = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    // Texture Image
+    int texWidth, texHeight, texChannels;
+    stbi_uc* texPixels = stbi_load("Resources/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    VkDeviceSize texSize = texWidth * texHeight * 4;
+    assert( texPixels );
+    createBuffer(m_device, m_physicalDevice,
+                texSize, 
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+                BufferMemoryProperty,
+                stagingBuffer, stagingBufferMemory);
+    vkMapMemory(m_device, stagingBufferMemory, 0, texSize, 0, &data);
+    memcpy(data, texPixels, texSize);
+    vkUnmapMemory(m_device, stagingBufferMemory);
+    stbi_image_free(texPixels);
+
+    createImage(m_device, m_physicalDevice, texWidth, texHeight, 
+        VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+        m_texImage, m_texImageMemory);
+
+#if TRANSFER_FAMILY
+    copyImage(m_device, m_commandPool, m_transferQueue, stagingBuffer, m_texImage, texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM);
+#else
+    copyImage(m_device, m_commandPool, m_graphicsQueue, stagingBuffer, m_texImage, texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM);
+#endif
+    vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+    vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+    createImageView(m_device, m_texImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, m_texImageView);
+
+    // Sampler
+    VkSamplerCreateInfo samplerCreateInfo = {};
+    samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
+    samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+    samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerCreateInfo.anisotropyEnable = VK_TRUE;
+    samplerCreateInfo.maxAnisotropy = 16;
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerCreateInfo.compareEnable = VK_FALSE;
+    samplerCreateInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerCreateInfo.mipLodBias = 0.0f;
+    samplerCreateInfo.minLod = 0.0f;
+    samplerCreateInfo.maxLod = 0.0f;
+    assert( vkCreateSampler(m_device, &samplerCreateInfo, nullptr, &m_texSampler) == VK_SUCCESS );
+
+    // Vertex + Index Buffer
     size_t bufferSize = sizeof(vertices) + sizeof(indices);
 
     createBuffer(m_device, m_physicalDevice,
         bufferSize, 
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         // TODO: VK_MEMORY_PROPERTY_HOST_COHERENT_BIT worse performance. use flushing
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
+        BufferMemoryProperty,
+        stagingBuffer, stagingBufferMemory);
     
-    void* data;
     vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, vertices, sizeof(vertices));
     data = static_cast<char*>(data) + sizeof(vertices);
@@ -557,8 +634,7 @@ void Renderer::createVulkanBuffers()
         bufferSize, 
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        m_vertexIndexBuffer,
-        m_vertexIndexBufferMemory);
+        m_vertexIndexBuffer, m_vertexIndexBufferMemory);
 #if TRANSFER_FAMILY
     copyBuffer(m_device, m_commandPool, m_transferQueue, stagingBuffer, m_vertexIndexBuffer, bufferSize);
 #else
@@ -576,18 +652,21 @@ void Renderer::createVulkanBuffers()
         createBuffer(m_device, m_physicalDevice,
             uniformBufferSize,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            BufferMemoryProperty,
             m_uniformBuffers[i], m_uniformBuffersMemory[i]);
     }
 
-    VkDescriptorPoolSize descPoolSize = {};
-    descPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descPoolSize.descriptorCount = m_swapChainImageCount;
+    int descPoolSizeCount = 2;
+    VkDescriptorPoolSize descPoolSize[descPoolSizeCount];
+    descPoolSize[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descPoolSize[0].descriptorCount = m_swapChainImageCount;
+    descPoolSize[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descPoolSize[1].descriptorCount = m_swapChainImageCount;
 
     VkDescriptorPoolCreateInfo descPoolCreateInfo = {};
     descPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descPoolCreateInfo.poolSizeCount = 1;
-    descPoolCreateInfo.pPoolSizes = &descPoolSize;
+    descPoolCreateInfo.poolSizeCount = descPoolSizeCount;
+    descPoolCreateInfo.pPoolSizes = descPoolSize;
     descPoolCreateInfo.maxSets = m_swapChainImageCount;
     assert (vkCreateDescriptorPool(m_device, &descPoolCreateInfo, nullptr, &m_descriptorPool) == VK_SUCCESS );
 
@@ -603,6 +682,12 @@ void Renderer::createVulkanBuffers()
     descSetAllocInfo.pSetLayouts = layouts;
     m_descriptorSets = new VkDescriptorSet[m_swapChainImageCount];
     assert( vkAllocateDescriptorSets(m_device, &descSetAllocInfo, m_descriptorSets) == VK_SUCCESS );
+
+    VkDescriptorImageInfo descImageInfo = {};
+    descImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    descImageInfo.imageView = m_texImageView;
+    descImageInfo.sampler = m_texSampler;
+
     for (int i = 0; i < m_swapChainImageCount; ++i)
     {
         VkDescriptorBufferInfo descBufferInfo = {};
@@ -610,17 +695,30 @@ void Renderer::createVulkanBuffers()
         descBufferInfo.offset = 0;
         descBufferInfo.range = sizeof(UniformBufferObject);
 
-        VkWriteDescriptorSet descWrite = {};
-        descWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descWrite.dstSet = m_descriptorSets[i];
-        descWrite.dstBinding = 0;
-        descWrite.dstArrayElement = 0;
-        descWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descWrite.descriptorCount = 1;
-        descWrite.pBufferInfo = &descBufferInfo;
-        descWrite.pImageInfo = nullptr;
-        descWrite.pTexelBufferView = nullptr;
-        vkUpdateDescriptorSets(m_device, 1, &descWrite, 0, nullptr);
+        int descWriteCount = 2;
+        VkWriteDescriptorSet descWrite[descWriteCount];
+
+        descWrite[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descWrite[0].dstSet = m_descriptorSets[i];
+        descWrite[0].dstBinding = 0;
+        descWrite[0].dstArrayElement = 0;
+        descWrite[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descWrite[0].descriptorCount = 1;
+        descWrite[0].pBufferInfo = &descBufferInfo;
+        descWrite[0].pImageInfo = nullptr;
+        descWrite[0].pTexelBufferView = nullptr;
+        descWrite[0].pNext = nullptr;
+
+        descWrite[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descWrite[1].dstSet = m_descriptorSets[i];
+        descWrite[1].dstBinding = 1;
+        descWrite[1].dstArrayElement = 0;
+        descWrite[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descWrite[1].descriptorCount = 1;
+        descWrite[1].pImageInfo = &descImageInfo;
+        descWrite[1].pNext = nullptr;
+
+        vkUpdateDescriptorSets(m_device, descWriteCount, descWrite, 0, nullptr);
     }
 
     // Command Buffer
@@ -632,13 +730,13 @@ void Renderer::createVulkanBuffers()
     cmdBufferAllocInfo.commandBufferCount = m_swapChainImageCount;
     assert( vkAllocateCommandBuffers(m_device, &cmdBufferAllocInfo, m_commandBuffers) == VK_SUCCESS );
 
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+
     for (int i = 0; i < m_swapChainImageCount; ++i)
     {
-        VkCommandBufferBeginInfo beginInfo = {};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0;
-        beginInfo.pInheritanceInfo = nullptr;
-
         assert( vkBeginCommandBuffer(m_commandBuffers[i], &beginInfo) == VK_SUCCESS );
 
         VkRenderPassBeginInfo renderPassInfo = {};
@@ -648,9 +746,15 @@ void Renderer::createVulkanBuffers()
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = m_swapChainExtent;
 
-        VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        VkClearValue clearColor = {};
+        clearColor.color = {0.0f, 0.0f, 0.0f, 1.0f};
+        VkClearValue clearDepth = {};
+        clearDepth.depthStencil = {1.0f, 0};
+        // VkClearValue clearColors[] = { clearColor }; // Needs to be same order as attachments
+        VkClearValue clearColors[] = { clearColor, clearDepth }; // Needs to be same order as attachments
+
+        renderPassInfo.clearValueCount = sizeof(clearColors) / sizeof(VkClearValue);
+        renderPassInfo.pClearValues = clearColors;
 
         vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
@@ -672,10 +776,10 @@ void Renderer::recreateVulkanSwapChain() // TODO: remove when just fullscreen
 {
     assert( false );
     int width, height;
-    glfwGetFramebufferSize(m_window, &width, &height);
+    glfwGetFramebufferSize(Engine::m_window.Get(), &width, &height);
     while (width == 0 || height == 0)
     {
-        glfwGetFramebufferSize(m_window, &width, &height);
+        glfwGetFramebufferSize(Engine::m_window.Get(), &width, &height);
         glfwWaitEvents();
     }
 
@@ -690,16 +794,7 @@ void Renderer::recreateVulkanSwapChain() // TODO: remove when just fullscreen
     createVulkanBuffers();
 }
 
-void Renderer::mainLoop()
-{
-    while (!glfwWindowShouldClose(m_window))
-    {
-        glfwPollEvents();
-        render();
-    }
-}
-
-void Renderer::render()
+void Renderer::update()
 {
     vkWaitForFences(m_device, 1, &m_framesInFlight[m_currentFrame], VK_TRUE, UINT64_MAX);
 
@@ -773,7 +868,9 @@ void Renderer::update(uint32_t currentImage)
         m_swapChainExtent.width / (float) m_swapChainExtent.height,
         0.1f, 100.0f);
     mat4 view = mat4::translate(0.0f, 0.0f, -2.0f);
-    mat4 model = mat4::eulerRotation(0.0f, 0.0f, time);
+    // mat4 model = mat4::eulerRotation(0.0f, 0.0f, time);
+    mat4 model = mat4::eulerRotation(0.0f, 0.0f, angle);
+    // mat4 model = mat4::Identity;
     ubo.modelViewProjection = proj * view * model;
     ubo.time = time;
 
@@ -787,6 +884,13 @@ void Renderer::cleanupVulkanSwapChain()
 {
     // Buffers
     // TODO: doesn't need to be redone on recreateSwapChain
+    vkDestroyImageView(m_device, m_depthImageView, nullptr);
+    vkDestroyImage(m_device, m_depthImage, nullptr);
+    vkFreeMemory(m_device, m_depthImageMemory, nullptr);
+    vkDestroySampler(m_device, m_texSampler, nullptr);
+    vkDestroyImageView(m_device, m_texImageView, nullptr);
+    vkDestroyImage(m_device, m_texImage, nullptr);
+    vkFreeMemory(m_device, m_texImageMemory, nullptr);
     vkDestroyBuffer(m_device, m_vertexIndexBuffer, nullptr);
     vkFreeMemory(m_device, m_vertexIndexBufferMemory, nullptr);
 
@@ -846,8 +950,4 @@ void Renderer::cleanup()
     DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 #endif
     vkDestroyInstance(m_instance, nullptr);
-
-    // GLFW
-    glfwDestroyWindow(m_window);
-    glfwTerminate();
 }

@@ -10,6 +10,7 @@ public:
         float data[3];
     };
 
+    vec3();
     vec3(float val);
     vec3(float x, float y, float z);
     vec3(float data[3]);

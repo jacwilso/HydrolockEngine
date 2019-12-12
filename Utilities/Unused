@@ -1,0 +1,4 @@
+int hash(int a, int b) // TODO: move to utilities
+{
+    return 0.5f * (a + b) * (a + b + 1) + b;
+}

@@ -77,6 +77,10 @@ VkShaderModule createShaderModule(const VkDevice& device, const char* const shad
 
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
+VkFormat findDepthFormat(VkPhysicalDevice physicalDevice);
+
+bool hasStencilComponent(VkFormat format);
+
 void createBuffer(VkDevice device,
                   VkPhysicalDevice physicalDevice,
                   VkDeviceSize size, 
@@ -86,6 +90,11 @@ void createBuffer(VkDevice device,
                   VkDeviceMemory& bufferMemory);
 void copyBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, 
                 VkBuffer src, VkBuffer dst, VkDeviceSize size);
+void copyImage(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkBuffer texBuffer, VkImage image, uint32_t width, uint32_t height, VkFormat format);
 
+void createImage(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, 
+                VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+                VkImage& image, VkDeviceMemory& memory);
+void createImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect, VkImageView& view);
 
 #endif /* VULKAN_UTILITIES_H */
