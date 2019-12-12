@@ -26,7 +26,8 @@
           // Defines
           "-DVK_LAYER_PATH=/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/etc/vulkan/explicit_layer.d",
           "-DDEBUG",
-          "-DDEBUG_RENDERER"
+          "-DDEBUG_RENDERER",
+          "-DEDITOR"
         ],
         "group": {
           "kind": "build",

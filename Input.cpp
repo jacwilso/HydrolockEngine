@@ -1,10 +1,11 @@
 #include "Input.h"
 
 #include <GLFW/glfw3.h>
-#include "Math/vec2.h"
 
+#include "Math/vec2.h"
+    
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{    
+{
 }
 
 void mouseCallback(GLFWwindow* window, int button, int action, int mods)
@@ -33,8 +34,12 @@ void Input::update()
 
 bool Input::isKeyPressed(int key)
 {
-    int state = glfwGetKey(m_window, key);
-    return state == GLFW_PRESS || state == GLFW_REPEAT;
+    return glfwGetKey(m_window, key) == GLFW_PRESS;
+}
+
+bool Input::isKeyReleased(int key)
+{
+    return glfwGetKey(m_window, key) == GLFW_RELEASE;
 }
 
 bool Input::isMousePressed(int btn)
@@ -48,4 +53,3 @@ vec2 Input::mousePosition()
     glfwGetCursorPos(m_window, &x, &y);
     return vec2(x, y);
 }
-

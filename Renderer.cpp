@@ -56,7 +56,7 @@ void Renderer::init()
     VkCommandPoolCreateInfo poolCreateInfo = {};
     poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolCreateInfo.queueFamilyIndex = queueFamily.graphicsFamily; // TODO: should this be m_graphicsQueue
-    poolCreateInfo.flags = 0;
+    poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     assert( vkCreateCommandPool(m_device, &poolCreateInfo, nullptr, &m_commandPool) == VK_SUCCESS );
 #if TRANSFER_FAMILY
     poolCreateInfo.queueFamilyIndex = queueFamily.transferFamily; // TODO: should this be m_transferQueue
@@ -184,7 +184,7 @@ void Renderer::createVulkanDevice()
     vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices);
     for (const auto& device : devices)
     {
-        if (isDeviceSutiable(device, m_surface))
+        if (isDeviceSuitable(device, m_surface))
         {
             m_physicalDevice = device;
             break;
@@ -205,6 +205,9 @@ void Renderer::createVulkanDevice()
 
     VkPhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
+#if EDITOR
+    deviceFeatures.fillModeNonSolid = VK_TRUE;
+#endif
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.queueCreateInfoCount = 1;
@@ -293,8 +296,8 @@ void Renderer::createVulkanSwapChain()
 void Renderer::createVulkanPipeline()
 {
     // Shaders
-    VkShaderModule vert = createShaderModule(m_device, "Shaders/vert.spv");
-    VkShaderModule frag = createShaderModule(m_device, "Shaders/frag.spv");
+    VkShaderModule vert = createShaderModule(m_device, "Shaders/Pipelines/Default/vert.spv");
+    VkShaderModule frag = createShaderModule(m_device, "Shaders/Pipelines/Default/frag.spv");
 
     VkPipelineShaderStageCreateInfo vertCreateInfo = {};
     vertCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -375,8 +378,7 @@ void Renderer::createVulkanPipeline()
     rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizerCreateInfo.depthClampEnable = VK_FALSE;
     rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;
-    rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL; // TODO: wireframe possibility
-    // rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_LINE;
+    rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizerCreateInfo.lineWidth = 1.0f; // > 1.0f requires wideLines
     rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizerCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -492,7 +494,6 @@ void Renderer::createVulkanPipeline()
     subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
                                       VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    // VkAttachmentDescription attachments[] = { colorAttachmentDesc };
     VkAttachmentDescription attachments[] = { colorAttachmentDesc, depthAttachmentDesc };
     VkRenderPassCreateInfo renderPassCreateInfo = {};
     renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -514,7 +515,6 @@ void Renderer::createVulkanPipeline()
     pipelineCreateInfo.pViewportState = &viewportCreateInfo;
     pipelineCreateInfo.pRasterizationState = &rasterizerCreateInfo;
     pipelineCreateInfo.pMultisampleState = &multisampleCreateInfo;
-    // pipelineCreateInfo.pDepthStencilState = nullptr;
     pipelineCreateInfo.pDepthStencilState = &depthStencilCreateInfo;
     pipelineCreateInfo.pColorBlendState = &blendCreateInfo;
     pipelineCreateInfo.pDynamicState = nullptr;
@@ -523,13 +523,42 @@ void Renderer::createVulkanPipeline()
     pipelineCreateInfo.renderPass = m_renderPass;
     pipelineCreateInfo.subpass = 0;
 
-    pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE; // VK_PIPELINE_CREATE_DERIVATIVE_BIT
-    pipelineCreateInfo.basePipelineIndex = -1;
+    VkPipelineCache pipelineCache = VK_NULL_HANDLE;
+#if EDITOR
+    // TODO: https://github.com/LunarG/VulkanSamples/blob/master/API-Samples/pipeline_cache/pipeline_cache.cpp
+    pipelineCreateInfo.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
 
-    assert( vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &m_pipeline) == VK_SUCCESS );
+    // VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
+    // pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+    // pipelineCacheCreateInfo.pNext = nullptr;
+
+    // assert( vkCreatePipelineCache(m_device, &pipelineCacheCreateInfo, nullptr, &pipelineCache) == VK_SUCCESS );
+    // TODO: store pipeline cache as member variable, write to file w/ vkGetPipelineCacheData
+#endif
+
+    assert( vkCreateGraphicsPipelines(m_device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &m_pipeline) == VK_SUCCESS );
 
     vkDestroyShaderModule(m_device, vert, nullptr);
     vkDestroyShaderModule(m_device, frag, nullptr);
+
+#if EDITOR
+    pipelineCreateInfo.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+    pipelineCreateInfo.basePipelineHandle = m_pipeline;
+    pipelineCreateInfo.basePipelineIndex = -1;
+
+    // Shaders
+    vert = createShaderModule(m_device, "Shaders/Pipelines/Wireframe/vert.spv");
+    frag = createShaderModule(m_device, "Shaders/Pipelines/Wireframe/frag.spv");
+    shaderStages[0].module = vert;
+    shaderStages[1].module = frag;
+
+    rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_LINE;
+
+    assert( vkCreateGraphicsPipelines(m_device, nullptr, 1, &pipelineCreateInfo, nullptr, &m_pipelineWireframe) == VK_SUCCESS );
+
+    vkDestroyShaderModule(m_device, vert, nullptr);
+    vkDestroyShaderModule(m_device, frag, nullptr);
+#endif
 }
 
 void Renderer::createVulkanBuffers()
@@ -545,7 +574,6 @@ void Renderer::createVulkanBuffers()
     m_swapChainFramebuffers = new VkFramebuffer[m_swapChainImageCount];
     for (int i = 0; i < m_swapChainImageCount; ++i)
     {
-        // VkImageView attachments[] = { m_swapChainImageViews[i] };
         VkImageView attachments[] = { m_swapChainImageViews[i], m_depthImageView };
 
         VkFramebufferCreateInfo framebufferCreateInfo = {};
@@ -747,10 +775,9 @@ void Renderer::createVulkanBuffers()
         renderPassInfo.renderArea.extent = m_swapChainExtent;
 
         VkClearValue clearColor = {};
-        clearColor.color = {0.0f, 0.0f, 0.0f, 1.0f};
+        clearColor.color = {1.0f, 1.0f, 1.0f, 1.0f};
         VkClearValue clearDepth = {};
         clearDepth.depthStencil = {1.0f, 0};
-        // VkClearValue clearColors[] = { clearColor }; // Needs to be same order as attachments
         VkClearValue clearColors[] = { clearColor, clearDepth }; // Needs to be same order as attachments
 
         renderPassInfo.clearValueCount = sizeof(clearColors) / sizeof(VkClearValue);
@@ -766,6 +793,11 @@ void Renderer::createVulkanBuffers()
         vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
         vkCmdDrawIndexed(m_commandBuffers[i], sizeof(indices) / sizeof(indices[0]), 1, 0, 0, 0);
         // vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
+
+#if EDITOR
+        vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineWireframe);
+        vkCmdDrawIndexed(m_commandBuffers[i], sizeof(indices) / sizeof(indices[0]), 1, 0, 0, 0);
+#endif
 
         vkCmdEndRenderPass(m_commandBuffers[i]);
         assert( vkEndCommandBuffer(m_commandBuffers[i]) == VK_SUCCESS );
@@ -911,6 +943,9 @@ void Renderer::cleanupVulkanSwapChain()
     }
     delete[] m_swapChainFramebuffers;
     // Pipeline
+#if EDITOR
+    vkDestroyPipeline(m_device, m_pipelineWireframe, nullptr);
+#endif
     vkDestroyPipeline(m_device, m_pipeline, nullptr);
     vkDestroyDescriptorSetLayout(m_device, m_descriptorLayout, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
@@ -950,4 +985,65 @@ void Renderer::cleanup()
     DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 #endif
     vkDestroyInstance(m_instance, nullptr);
+}
+
+void Renderer::cycleMode()
+{
+    renderMode = ++renderMode % 3;
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;
+    beginInfo.pInheritanceInfo = nullptr;
+    
+    vkQueueWaitIdle(m_graphicsQueue); // TODO: 
+
+    for (int i = 0; i < m_swapChainImageCount; ++i)
+    {
+        vkResetCommandBuffer(m_commandBuffers[i], 0);
+
+        assert( vkBeginCommandBuffer(m_commandBuffers[i], &beginInfo) == VK_SUCCESS );
+
+        VkRenderPassBeginInfo renderPassInfo = {};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = m_renderPass;
+        renderPassInfo.framebuffer = m_swapChainFramebuffers[i];
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = m_swapChainExtent;
+
+        VkClearValue clearColor = {};
+        clearColor.color = {1.0f, 1.0f, 1.0f, 1.0f};
+        VkClearValue clearDepth = {};
+        clearDepth.depthStencil = {1.0f, 0};
+        // VkClearValue clearColors[] = { clearColor }; // Needs to be same order as attachments
+        VkClearValue clearColors[] = { clearColor, clearDepth }; // Needs to be same order as attachments
+
+        renderPassInfo.clearValueCount = sizeof(clearColors) / sizeof(VkClearValue);
+        renderPassInfo.pClearValues = clearColors;
+
+        vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        VkBuffer vertexBuffers[] = { m_vertexIndexBuffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(m_commandBuffers[i], 0, 1, vertexBuffers, offsets);
+        vkCmdBindIndexBuffer(m_commandBuffers[i], m_vertexIndexBuffer, sizeof(vertices), VK_INDEX_TYPE_UINT16);
+        vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[i], 0, nullptr);
+
+#if EDITOR
+        if (renderMode > 0)
+        {
+            vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineWireframe);
+            vkCmdDrawIndexed(m_commandBuffers[i], sizeof(indices) / sizeof(indices[0]), 1, 0, 0, 0);
+        }
+#endif
+
+        if (renderMode == 0 || renderMode == 2)
+        {
+            vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+            vkCmdDrawIndexed(m_commandBuffers[i], sizeof(indices) / sizeof(indices[0]), 1, 0, 0, 0);
+        }
+
+        vkCmdEndRenderPass(m_commandBuffers[i]);
+        assert( vkEndCommandBuffer(m_commandBuffers[i]) == VK_SUCCESS );
+    }
 }

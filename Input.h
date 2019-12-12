@@ -5,6 +5,7 @@ class Input
 {
     public:
     bool isKeyPressed(int key); // TODO: maybe go to subscribtion system?
+    bool isKeyReleased(int key); // TODO: maybe go to subscribtion system?
     bool isMousePressed(int button);
     class vec2 mousePosition();
 

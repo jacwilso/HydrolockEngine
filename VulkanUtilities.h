@@ -65,7 +65,7 @@ struct SwapChainSupportDetails
 
 SwapChainSupportDetails querySwapChainSupport(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
 
-bool isDeviceSutiable(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
+bool isDeviceSuitable(const VkPhysicalDevice& device, const VkSurfaceKHR& surface);
 
 VkSurfaceFormatKHR selectSwapSurfaceFormat(const VkSurfaceFormatKHR* const availableFormats, int availableFormatCount);
 

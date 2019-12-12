@@ -10,7 +10,8 @@
             "defines": [
                 "VERSION=1",
                 "DEBUG",
-                "DEBUG_RENDERER"
+                "DEBUG_RENDERER",
+                "EDITOR"
             ],
             "macFrameworkPath": [],
             "compilerPath": "/usr/bin/clang",

@@ -5,7 +5,10 @@
 
 class Renderer {
 public:
-    float angle = 0; // TODO: remove
+    // TODO: remove
+    float angle = 0;
+    int renderMode;
+    void cycleMode();
 
 private:
     // Instance
@@ -32,6 +35,9 @@ private:
     VkPipelineLayout m_pipelineLayout;
     VkRenderPass m_renderPass;
     VkPipeline m_pipeline;
+#if EDITOR
+    VkPipeline m_pipelineWireframe;
+#endif
     // Buffers
     VkFramebuffer* m_swapChainFramebuffers;
     VkCommandPool m_commandPool;

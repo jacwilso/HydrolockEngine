@@ -128,11 +128,14 @@ SwapChainSupportDetails querySwapChainSupport(const VkPhysicalDevice& device, co
     return details;
 }
 
-bool isDeviceSutiable(const VkPhysicalDevice& device, const VkSurfaceKHR& surface)
+bool isDeviceSuitable(const VkPhysicalDevice& device, const VkSurfaceKHR& surface)
 {
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
     if (!supportedFeatures.samplerAnisotropy) return false; // TODO: Enum properties
+#if EDITOR
+    if (!supportedFeatures.fillModeNonSolid) return false; // TODO: Enum properties
+#endif
 
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
@@ -156,14 +159,6 @@ bool isDeviceSutiable(const VkPhysicalDevice& device, const VkSurfaceKHR& surfac
 
     QueueFamilyIndices indices = findQueueFamilies(device, surface);
     return indices.isComplete() && swapChainSupport.presentModeCount > 0;
-
-    // TODO: don't care about GPU right now
-    VkPhysicalDeviceProperties deviceProperties;
-    vkGetPhysicalDeviceProperties(device, &deviceProperties);
-    VkPhysicalDeviceFeatures deviceFeatures;
-    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
-
-    return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
 }
 
 VkSurfaceFormatKHR selectSwapSurfaceFormat(const VkSurfaceFormatKHR* const availableFormats, int availableFormatCount)
