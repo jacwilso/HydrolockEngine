@@ -1,2 +1,20 @@
-- Move function call asserts to pass in result
+Project
 - GLFW + vulkan into middleware
+
+Rendering
+- abstract image loading
+- integrate imgui
+- creation calls pass in result rather than wrap
+- basic UI (not imgui)
+- change all "CreateInfo" to just "Info"
+- https://devblogs.nvidia.com/vulkan-dos-donts/
+
+Input
+- why is pressed called multiple times
+- maybe subscribe to key
+
+ImGUI
+- do I want to use this just for tools? (think yes)
+
+Collisions
+- basics (box, circle)

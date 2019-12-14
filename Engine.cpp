@@ -28,8 +28,12 @@ void Engine::update()
 {
     m_window.update();
     m_input.update();
+    gameUpdate();
     m_renderer.update();
-    
+}
+
+void Engine::gameUpdate()
+{
     // TODO: remove
     if (m_input.isKeyPressed(65))
     {

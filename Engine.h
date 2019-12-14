@@ -12,6 +12,8 @@ class Engine
     void update();
     void cleanup();
 
+    void gameUpdate();
+
     public:
     void run();
 

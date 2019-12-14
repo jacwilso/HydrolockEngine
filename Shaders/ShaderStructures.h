@@ -4,10 +4,19 @@
 
 #include <glm/mat4x4.hpp>
 
-struct Vertex {
-private:
-    inline static VkVertexInputAttributeDescription attribDesc[3];
 
+#define VERTEX_INPUT_ATTRIBUTE(name, _location, _format)        \
+    static VkVertexInputAttributeDescription name##Attribute()  \
+    {                                                           \
+        VkVertexInputAttributeDescription desc = {};            \
+        desc.binding = 0;                                       \
+        desc.location = _location;                              \
+        desc.offset = offsetof(Vertex, name);                   \
+        desc.format = _format;                                  \
+        return desc;                                            \
+    }
+
+struct Vertex {
 public:
     vec3 position;
     vec3 color;
@@ -22,26 +31,9 @@ public:
         return desc;
     }
 
-    const static uint32_t attributeDescCount = 3;
-    static VkVertexInputAttributeDescription* attributeDesc()
-    {
-        Vertex::attribDesc[0].binding = 0;
-        Vertex::attribDesc[0].location = 0;
-        Vertex::attribDesc[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        Vertex::attribDesc[0].offset = offsetof(Vertex, position);
-
-        Vertex::attribDesc[1].binding = 0;
-        Vertex::attribDesc[1].location = 1;
-        Vertex::attribDesc[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        Vertex::attribDesc[1].offset = offsetof(Vertex, color);
-
-        Vertex::attribDesc[2].binding = 0;
-        Vertex::attribDesc[2].location = 2;
-        Vertex::attribDesc[2].format = VK_FORMAT_R32G32_SFLOAT;
-        Vertex::attribDesc[2].offset = offsetof(Vertex, uv);
-        
-        return Vertex::attribDesc;
-    }
+    VERTEX_INPUT_ATTRIBUTE(position, 0, VK_FORMAT_R32G32B32_SFLOAT)
+    VERTEX_INPUT_ATTRIBUTE(color, 1, VK_FORMAT_R32G32B32_SFLOAT)
+    VERTEX_INPUT_ATTRIBUTE(uv, 2, VK_FORMAT_R32G32_SFLOAT)
 };
 
 struct UniformBufferObject
