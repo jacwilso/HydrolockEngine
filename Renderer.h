@@ -2,6 +2,7 @@
 #define RENDERER_H
 
 #include <vulkan/vulkan.h> // TODO: forward declare
+#include "RenderStructs.h"
 
 class Renderer {
 public:
@@ -32,9 +33,12 @@ private:
     VkImageView* m_swapChainImageViews;
     // Pipeline
     VkDescriptorSetLayout m_descriptorLayout;
+    VkDescriptorSetLayout m_compositionDescriptorLayout;
     VkPipelineLayout m_pipelineLayout;
+    VkPipelineLayout m_pipelineLayoutSwap;
     VkRenderPass m_renderPass;
-    VkPipeline m_pipeline;
+    VkPipeline m_pipeline; // TODO: pipeline struct
+    VkPipeline m_pipelineComposition;
 #if EDITOR
     VkPipeline m_pipelineWireframe;
 #endif
@@ -46,9 +50,7 @@ private:
 #endif
     VkCommandBuffer* m_commandBuffers;
 
-    VkImage m_depthImage;
-    VkDeviceMemory m_depthImageMemory;
-    VkImageView m_depthImageView;
+    Attachment m_attachments;
 
     VkBuffer m_vertexIndexBuffer;
     VkDeviceMemory m_vertexIndexBufferMemory;
@@ -57,6 +59,8 @@ private:
     VkDeviceMemory* m_uniformBuffersMemory;
     VkDescriptorPool m_descriptorPool;
     VkDescriptorSet* m_descriptorSets;
+    VkDescriptorPool m_compositionDescriptorPool; // TODO: 1 descriptor pool
+    VkDescriptorSet* m_compositionDescriptorSets; // TODO: 1 descriptor set with different array indicies
     
     VkImage m_texImage;
     VkDeviceMemory m_texImageMemory;
@@ -79,6 +83,7 @@ private:
     void createVulkanSwapChain();
     void createVulkanPipeline();
     void createVulkanBuffers();
+    void createVulkanDrawCmds();
 
     void recreateVulkanSwapChain();
     void cleanupVulkanSwapChain();
