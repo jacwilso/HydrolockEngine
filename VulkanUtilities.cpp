@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "Defines.h"
+#include "Utilities/Defines.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

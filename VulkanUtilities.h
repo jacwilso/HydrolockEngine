@@ -81,6 +81,9 @@ VkFormat findDepthFormat(VkPhysicalDevice physicalDevice);
 
 bool hasStencilComponent(VkFormat format);
 
+VkCommandBuffer beginCommandBuffer(VkDevice device, VkCommandPool commandPool);
+void endCommandBuffer(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkCommandBuffer cmdBuffer);
+
 void createBuffer(VkDevice device,
                   VkPhysicalDevice physicalDevice,
                   VkDeviceSize size, 

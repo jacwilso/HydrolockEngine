@@ -1,7 +1,9 @@
 #include "RenderStructs.h"
 
+#include <assert.h>
 #include "VulkanUtilities.h"
 
+/// Attachment
 void Attachment::create(VkDevice device, VkPhysicalDevice physicalDevice, VkExtent2D extent, VkFormat colorFormat)
 {
     createImage(device, physicalDevice, extent.width, extent.height, 
@@ -29,4 +31,32 @@ void Attachment::destroy(VkDevice device)
     vkDestroyImageView(device, depthView, nullptr);
     vkDestroyImage(device, depth, nullptr);
     vkFreeMemory(device, depthMemory, nullptr);
+}
+
+/// Pipeline
+void Pipeline::create(VkDevice device)
+{
+    assert( false );
+}
+
+void Pipeline::destroy(VkDevice device)
+{
+    vkDestroyPipeline(device, scene, nullptr);
+    vkDestroyPipeline(device, composition, nullptr);
+    vkDestroyPipeline(device, imgui, nullptr);
+#if EDITOR
+    vkDestroyPipeline(device, wireframe, nullptr);
+#endif
+}
+
+/// Render Pass
+void RenderPass::create(VkDevice device)
+{
+    assert( false );
+}
+
+void RenderPass::destroy(VkDevice device)
+{
+    vkDestroyRenderPass(device, scene, nullptr);
+    vkDestroyRenderPass(device, imgui, nullptr);
 }

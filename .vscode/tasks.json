@@ -10,6 +10,7 @@
           "-stdlib=libc++",
           // Includes
           "-I.",
+          "-I./Middleware/",
           "-I/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/include",
           // Runtime Path
           "-rpath", "/Users/jacwilso/Documents/vulkansdk-macos-1.1.126.0/macOS/lib",
@@ -20,6 +21,7 @@
           // Compile
           "*.cpp",
           "Math/*.cpp",
+          "Middleware/imgui/*.cpp",
           "-o",
           "main.out",
           "--debug",

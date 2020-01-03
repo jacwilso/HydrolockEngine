@@ -19,6 +19,7 @@ private:
     VkPhysicalDevice m_physicalDevice; // TODO: only needed on init
     VkDevice m_device;
     VkSurfaceKHR m_surface;
+    uint32_t m_graphicsFamily;
     VkQueue m_graphicsQueue; // TODO: only needed on init
     VkQueue m_presentQueue; // TODO: only needed on init
 #if TRANSFER_FAMILY
@@ -35,20 +36,17 @@ private:
     VkDescriptorSetLayout m_descriptorLayout;
     VkDescriptorSetLayout m_compositionDescriptorLayout;
     VkPipelineLayout m_pipelineLayout;
-    VkPipelineLayout m_pipelineLayoutSwap;
-    VkRenderPass m_renderPass;
-    VkPipeline m_pipeline; // TODO: pipeline struct
-    VkPipeline m_pipelineComposition;
-#if EDITOR
-    VkPipeline m_pipelineWireframe;
-#endif
+    VkPipelineLayout m_compositionPipelineLayout;
+
+    RenderPass m_renderPass;
+    Pipeline m_pipeline;
     // Buffers
-    VkFramebuffer* m_swapChainFramebuffers;
+    VkFramebuffer* m_sceneFramebuffers;
     VkCommandPool m_commandPool;
 #if TRANSFER_FAMILY
     VkCommandPool m_transferCommandPool;
 #endif
-    VkCommandBuffer* m_commandBuffers;
+    VkCommandBuffer* m_commandBuffers; // TODO: break into secondary for background + composition? and imgui
 
     Attachment m_attachments;
 
@@ -73,9 +71,15 @@ private:
     VkFence* m_imagesInFlight;
     size_t m_currentFrame;
 
+    // Imgui
+    VkDescriptorPool m_imguiDescriptorPool;
+    VkFramebuffer* m_imguiFramebuffers;
+    VkCommandPool* m_imguiCommandPools;
+    VkCommandBuffer* m_imguiCommandBuffers;
+
     void init();
     void update();
-    void update(uint32_t currentImage);
+    void update(uint32_t frameIndex);
     void cleanup();
 
     void createVulkanInstance();
@@ -84,6 +88,12 @@ private:
     void createVulkanPipeline();
     void createVulkanBuffers();
     void createVulkanDrawCmds();
+
+    void createImguiContext();
+    void cleanupImguiContext();
+    void updateImgui(uint32_t frameIndex);
+    void renderImgui();
+    void recreateImguiSwapChain();
 
     void recreateVulkanSwapChain();
     void cleanupVulkanSwapChain();

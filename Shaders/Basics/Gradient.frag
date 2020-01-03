@@ -4,10 +4,15 @@
 layout(constant_id = 0) const int ColorCount = 2;
 layout(constant_id = 1) const bool Vertical = true; // otherwise horizontal
 
-layout(binding = 0) uniform Uniform
-{
-    vec3 colors[ColorCount];
-};
+// layout(binding = 0) uniform Uniform
+// {
+//     vec3 colors[ColorCount];
+// };
+vec3 colors[] = vec3[]
+(
+    vec3(1.0,0.0,0.0),
+    vec3(0.0,0.0,1.0)
+);
 
 layout(location = 0) in vec2 inUV;
 
@@ -23,8 +28,10 @@ void main()
     {
         val = inUV.x;
     }
-    float percent = (ColorCount - 1) * val;
-    int prev = int(floor(percent));
-    int next = int(ceil(percent));
-    outColor = vec4(0.5f * (colors[prev] + colors[next]), 1.0f);
+    float t = (ColorCount - 1.0f) * val;
+    int prev = int(floor(t));
+    int next = int(ceil(t));
+    t = (next - t) / (next - prev);
+    vec3 lerpColor = colors[prev] * t + colors[next] * (1 - t);
+    outColor = vec4(lerpColor, 1);
 }
