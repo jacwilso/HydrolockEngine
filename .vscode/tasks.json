@@ -22,6 +22,8 @@
           "*.cpp",
           "Math/*.cpp",
           "Middleware/imgui/*.cpp",
+          "Editor/*.cpp",
+          "Rendering/*.cpp",
           "-o",
           "main.out",
           "--debug",

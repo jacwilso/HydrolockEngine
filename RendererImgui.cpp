@@ -197,6 +197,29 @@ void Renderer::renderImgui()
         ImGui::End();
     }
 
+    {
+        static char buf[64];
+        static float pos[3];
+
+        ImGui::Begin("Test");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Image File");
+        ImGui::SameLine();
+        ImGui::PushItemWidth(100);
+        ImGui::InputText("", buf, 64);
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+        if (ImGui::Button("Load"))
+        {
+            loadImageInstance(buf, pos);
+        }
+
+        ImGui::InputFloat3("Position", pos, 2);
+
+        ImGui::End();
+    }
+
     ImGui::Render();
     // memcpy(&wd->ClearValue.color.float32[0], &clear_color, 4 * sizeof(float));
 }

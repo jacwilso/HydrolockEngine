@@ -43,3 +43,14 @@ struct UniformBufferObject
     mat4 modelViewProjection;
     float time;
 };
+
+struct VsPushConstants
+{
+    mat4 model;
+    uint32_t instanceID;
+};
+
+struct FsPushConstants
+{
+    uint32_t instanceID;
+};

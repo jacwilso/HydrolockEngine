@@ -3,6 +3,7 @@
 
 #include <vulkan/vulkan.h> // TODO: forward declare
 #include "RenderStructs.h"
+#include "Math/mat4.h"
 
 class Renderer {
 public:
@@ -60,9 +61,9 @@ private:
     VkDescriptorPool m_compositionDescriptorPool; // TODO: 1 descriptor pool
     VkDescriptorSet* m_compositionDescriptorSets; // TODO: 1 descriptor set with different array indicies
     
-    VkImage m_texImage;
-    VkDeviceMemory m_texImageMemory;
-    VkImageView m_texImageView;
+    VkImage* m_texImage;
+    VkDeviceMemory* m_texImageMemory;
+    VkImageView* m_texImageView;
     VkSampler m_texSampler;
     // Synchronization
     VkSemaphore* m_imageAcquired;
@@ -76,6 +77,12 @@ private:
     VkFramebuffer* m_imguiFramebuffers;
     VkCommandPool* m_imguiCommandPools;
     VkCommandBuffer* m_imguiCommandBuffers;
+
+    // TODO: remove
+    uint32_t m_instances = 2;
+    mat4 model[64];
+    void loadImageInstance(char filePath[64], float position[3]);
+    //
 
     void init();
     void update();

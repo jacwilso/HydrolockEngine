@@ -8,6 +8,7 @@ Rendering
 - basic UI (not imgui)
 - change all "CreateInfo" to just "Info"
 - https://devblogs.nvidia.com/vulkan-dos-donts/
+- gl_InstanceIndex -> instancing?
 
 Input
 - why is pressed called multiple times
