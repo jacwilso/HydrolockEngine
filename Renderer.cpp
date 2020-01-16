@@ -18,6 +18,7 @@
 #include "Utilities/Defines.h"
 #include "Shaders/ShaderStructures.h"
 #include "VulkanUtilities.h"
+#include "Math/vec4.h"
 
 #define BASE_SUBPASS 0
 
@@ -346,7 +347,7 @@ void Renderer::createVulkanPipeline()
         VkDescriptorSetLayoutBinding uboLayoutBinding = {};
         uboLayoutBinding.binding = 0;
         uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboLayoutBinding.descriptorCount = 1; // TODO: how does this map if only 1 binding
+        uboLayoutBinding.descriptorCount = 1;
         uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         uboLayoutBinding.pImmutableSamplers = nullptr;
 
@@ -424,7 +425,7 @@ void Renderer::createVulkanPipeline()
     depthStencilCreateInfo.depthWriteEnable = VK_TRUE;
     depthStencilCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
     depthStencilCreateInfo.depthBoundsTestEnable = VK_FALSE;
-    depthStencilCreateInfo.minDepthBounds = 0.0f;
+    depthStencilCreateInfo.minDepthBounds = -1.0f;
     depthStencilCreateInfo.maxDepthBounds = 1.0f;
     depthStencilCreateInfo.stencilTestEnable = VK_FALSE; // TODO: Stencil
 
@@ -433,21 +434,21 @@ void Renderer::createVulkanPipeline()
                                      VK_COLOR_COMPONENT_G_BIT |
                                      VK_COLOR_COMPONENT_B_BIT |
                                      VK_COLOR_COMPONENT_A_BIT;
-    blendAttachment.blendEnable = VK_FALSE;
-    blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-    blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-    blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-    blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-    // blendAttachment.blendEnable = VK_TRUE;
-    // blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    // blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    // blendAttachment.blendEnable = VK_FALSE;
+    // blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    // blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
     // blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
     // blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     // blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     // blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    blendAttachment.blendEnable = VK_TRUE;
+    blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     VkPipelineColorBlendStateCreateInfo blendCreateInfo = {};
     blendCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -627,11 +628,31 @@ void Renderer::createVulkanPipeline()
 
         vert = createShaderModule(m_device, "Shaders/Basics/Fullscreen.vert.spv");
         frag = createShaderModule(m_device, "Shaders/Pipelines/Background/Gradient.frag.spv");
-        // frag = createShaderModule(m_device, "Shaders/Pipelines/Background/Composition.frag.spv");
+        // frag = createShaderModule(m_device, "Shaders/Pipelines/Background/Solid.frag.spv");
         shaderStages[0].module = vert;
         shaderStages[1].module = frag;
         // TODO: enable different types of backgrounds (changable at runtime?)
-        // TODO: pass specialization constants for gradient shader
+
+        VkSpecializationMapEntry colorCountMapEntry = {};
+        colorCountMapEntry.constantID = 0;
+        colorCountMapEntry.size = sizeof(int);
+        colorCountMapEntry.offset = 0;
+        int colorCount = m_colorCount;
+
+        VkSpecializationInfo specializationInfo = {};
+        specializationInfo.mapEntryCount = 1;
+        specializationInfo.pMapEntries = &colorCountMapEntry;
+        specializationInfo.dataSize = sizeof(int);
+        specializationInfo.pData = &colorCount;
+
+        VkPipelineShaderStageCreateInfo d_fragStageCreateInfo = fragStageCreateInfo;
+        d_fragStageCreateInfo.pSpecializationInfo = &specializationInfo;
+        d_fragStageCreateInfo.module = frag;
+        VkPipelineShaderStageCreateInfo d_shaderStages[] = {
+            shaderStages[0],
+            d_fragStageCreateInfo
+        };
+        compositionPipelineCreateInfo.pStages = d_shaderStages;
 
         // Vertex Input
         VkPipelineVertexInputStateCreateInfo d_vertInputCreateInfo = {};
@@ -645,7 +666,14 @@ void Renderer::createVulkanPipeline()
             colorLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
             colorLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-            VkDescriptorSetLayoutBinding bindings[] = { colorLayoutBinding };
+            VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+            uboLayoutBinding.binding = 1;
+            uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            uboLayoutBinding.descriptorCount = 1;
+            uboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            uboLayoutBinding.pImmutableSamplers = nullptr;
+
+            VkDescriptorSetLayoutBinding bindings[] = { colorLayoutBinding, uboLayoutBinding };
             VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {};
             layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             layoutCreateInfo.bindingCount = sizeof(bindings) / sizeof(VkDescriptorSetLayoutBinding);
@@ -770,7 +798,7 @@ void Renderer::createVulkanBuffers()
     }
     {
         int texWidth, texHeight, texChannels;
-        stbi_uc* texPixels = stbi_load("Resources/texture2.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        stbi_uc* texPixels = stbi_load("Resources/sprite.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize texSize = texWidth * texHeight * 4;
         assert( texPixels );
         createBuffer(m_device, m_physicalDevice,
@@ -796,6 +824,35 @@ void Renderer::createVulkanBuffers()
         vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 
         createImageView(m_device, m_texImage[1], VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, m_texImageView[1]);
+    }
+    {
+        int texWidth, texHeight, texChannels;
+        stbi_uc* texPixels = stbi_load("Resources/texture2.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        VkDeviceSize texSize = texWidth * texHeight * 4;
+        assert( texPixels );
+        createBuffer(m_device, m_physicalDevice,
+                    texSize, 
+                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+                    BufferMemoryProperty,
+                    stagingBuffer, stagingBufferMemory);
+        vkMapMemory(m_device, stagingBufferMemory, 0, texSize, 0, &data);
+        memcpy(data, texPixels, texSize);
+        vkUnmapMemory(m_device, stagingBufferMemory);
+        stbi_image_free(texPixels);
+
+        createImage(m_device, m_physicalDevice, texWidth, texHeight, 
+            VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+            m_texImage[2], m_texImageMemory[2]);
+
+    #if TRANSFER_FAMILY
+        copyImage(m_device, m_commandPool, m_transferQueue, stagingBuffer, m_texImage[0], texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM);
+    #else
+        copyImage(m_device, m_commandPool, m_graphicsQueue, stagingBuffer, m_texImage[2], texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM);
+    #endif
+        vkDestroyBuffer(m_device, stagingBuffer, nullptr);
+        vkFreeMemory(m_device, stagingBufferMemory, nullptr);
+
+        createImageView(m_device, m_texImage[2], VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, m_texImageView[2]);
     }
 
     // Sampler
@@ -848,9 +905,12 @@ void Renderer::createVulkanBuffers()
     vkFreeMemory(m_device, stagingBufferMemory, nullptr);
 
     // Uniform Buffer
-    VkDeviceSize uniformBufferSize = sizeof(UniformBufferObject);
     m_uniformBuffers = new VkBuffer[m_swapChainImageCount];
     m_uniformBuffersMemory = new VkDeviceMemory[m_swapChainImageCount];
+    m_colorBuffers = new VkBuffer[m_swapChainImageCount];
+    m_colorBuffersMemory = new VkDeviceMemory[m_swapChainImageCount];
+    VkDeviceSize uniformBufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize colorBufferSize = sizeof(vec4) * m_colorCount;
     for (int i = 0; i < m_swapChainImageCount; ++i)
     {
         createBuffer(m_device, m_physicalDevice,
@@ -858,6 +918,12 @@ void Renderer::createVulkanBuffers()
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             BufferMemoryProperty,
             m_uniformBuffers[i], m_uniformBuffersMemory[i]);
+        
+        createBuffer(m_device, m_physicalDevice,
+            colorBufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            BufferMemoryProperty,
+            m_colorBuffers[i], m_colorBuffersMemory[i]);
     }
 
     {
@@ -883,11 +949,15 @@ void Renderer::createVulkanBuffers()
     }
 
     {
-        VkDescriptorPoolSize colorDescPoolSize = {};
-        colorDescPoolSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-        colorDescPoolSize.descriptorCount = m_swapChainImageCount;
+        VkDescriptorPoolSize inputDescPoolSize = {};
+        inputDescPoolSize.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+        inputDescPoolSize.descriptorCount = m_swapChainImageCount;
 
-        VkDescriptorPoolSize descPoolSize[] = { colorDescPoolSize };
+        VkDescriptorPoolSize uboDescPoolSize = {};
+        uboDescPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboDescPoolSize.descriptorCount = m_swapChainImageCount;
+
+        VkDescriptorPoolSize descPoolSize[] = { inputDescPoolSize, uboDescPoolSize };
         VkDescriptorPoolCreateInfo descPoolCreateInfo = {};
         descPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         descPoolCreateInfo.poolSizeCount = sizeof(descPoolSize) / sizeof(VkDescriptorPoolSize);
@@ -993,17 +1063,34 @@ void Renderer::createVulkanBuffers()
         }
 
         {
-            VkWriteDescriptorSet colorWriteDescSet = {};
-            colorWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            colorWriteDescSet.dstSet = m_compositionDescriptorSets[i];
-            colorWriteDescSet.dstBinding = 0;
-            colorWriteDescSet.dstArrayElement = 0;
-            colorWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-            colorWriteDescSet.descriptorCount = 1;
-            colorWriteDescSet.pImageInfo = &compositionColorImageInfo;
-            colorWriteDescSet.pNext = nullptr;
+            VkWriteDescriptorSet inputWriteDescSet = {};
+            inputWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            inputWriteDescSet.dstSet = m_compositionDescriptorSets[i];
+            inputWriteDescSet.dstBinding = 0;
+            inputWriteDescSet.dstArrayElement = 0;
+            inputWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+            inputWriteDescSet.descriptorCount = 1;
+            inputWriteDescSet.pImageInfo = &compositionColorImageInfo;
+            inputWriteDescSet.pNext = nullptr;
+
+            VkDescriptorBufferInfo descBufferInfo = {};
+            descBufferInfo.buffer = m_colorBuffers[i];
+            descBufferInfo.offset = 0;
+            descBufferInfo.range = sizeof(vec4) * m_colorCount;
+
+            VkWriteDescriptorSet uboWriteDescSet = {};
+            uboWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            uboWriteDescSet.dstSet = m_compositionDescriptorSets[i];
+            uboWriteDescSet.dstBinding = 1;
+            uboWriteDescSet.dstArrayElement = 0;
+            uboWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            uboWriteDescSet.descriptorCount = 1;
+            uboWriteDescSet.pBufferInfo = &descBufferInfo;
+            uboWriteDescSet.pImageInfo = nullptr;
+            uboWriteDescSet.pTexelBufferView = nullptr;
+            uboWriteDescSet.pNext = nullptr;
             
-            VkWriteDescriptorSet writeDescSet[] = { colorWriteDescSet };
+            VkWriteDescriptorSet writeDescSet[] = { inputWriteDescSet, uboWriteDescSet };
             vkUpdateDescriptorSets(m_device, sizeof(writeDescSet) / sizeof(VkWriteDescriptorSet), writeDescSet, 0, nullptr);
         }
     }
@@ -1130,6 +1217,17 @@ void Renderer::update(uint32_t currentImage)
     vkMapMemory(m_device, m_uniformBuffersMemory[currentImage], 0, sizeof(UniformBufferObject), 0, &data);
     memcpy(data, &ubo, sizeof(UniformBufferObject));
     vkUnmapMemory(m_device, m_uniformBuffersMemory[currentImage]);
+
+    int test = 100 * time;
+    vec4 colors[] = {
+        vec4(float(test % 255)/255.0f,float(test % 255)/255.0f,float(test % 255)/255.0f,1.0f),
+        // vec4(127.0f/255.0f,127.0f/255.0f,213.0f/255.0f),
+        vec4(134.0f/255.0f,168.0f/255.0f,231.0f/255.0f,1.0f),
+        vec4(145.0f/255.0f,234.0f/255.0f,228.0f/255.0f,1.0f)
+    };
+    vkMapMemory(m_device, m_colorBuffersMemory[currentImage], 0, sizeof(colors), 0, &data);
+    memcpy(data, colors, sizeof(colors));
+    vkUnmapMemory(m_device, m_colorBuffersMemory[currentImage]);
 }
 
 void Renderer::cleanupVulkanSwapChain()
@@ -1152,9 +1250,13 @@ void Renderer::cleanupVulkanSwapChain()
     {
         vkDestroyBuffer(m_device, m_uniformBuffers[i], nullptr);
         vkFreeMemory(m_device, m_uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(m_device, m_colorBuffers[i], nullptr);
+        vkFreeMemory(m_device, m_colorBuffersMemory[i], nullptr);
     }
     delete[] m_uniformBuffers;
     delete[] m_uniformBuffersMemory;
+    delete[] m_colorBuffers;
+    delete[] m_colorBuffersMemory;
     vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
     delete[] m_descriptorSets;
     vkDestroyDescriptorPool(m_device, m_compositionDescriptorPool, nullptr);
@@ -1222,8 +1324,9 @@ void Renderer::createVulkanDrawCmds()
 
     VsPushConstants vsPushConstants[m_instances];
     FsPushConstants fsPushConstants[m_instances];
-    model[0] = mat4::Identity;
-    model[1] = mat4::translate(0.5f, 0.5f, -0.5f);
+    model[0] = mat4::translate(-0.5f, -0.5f, -0.5f);
+    model[1] = mat4::Identity;
+    model[2] = mat4::translate(0.5f, 0.5f, -0.5f);
     for (int i = 0; i < m_instances; ++i)
     {
         vsPushConstants[i].instanceID = i;
@@ -1243,7 +1346,7 @@ void Renderer::createVulkanDrawCmds()
         renderPassInfo.renderArea.extent = m_swapChainExtent;
 
         VkClearValue clearColor = {};
-        clearColor.color = {1.0f, 1.0f, 1.0f, 0.0f};
+        clearColor.color = {1.0f, 1.0f, 0.0f, 0.0f};
         VkClearValue clearDepth = {};
         clearDepth.depthStencil = {1.0f, 0};
         VkClearValue clearColors[] = { clearColor, clearColor, clearDepth }; // Needs to be same order as attachments
@@ -1287,6 +1390,7 @@ void Renderer::createVulkanDrawCmds()
 
         // Composite
         vkCmdNextSubpass(m_commandBuffers[i], VK_SUBPASS_CONTENTS_INLINE);
+
         vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.composition);
         vkCmdBindDescriptorSets(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositionPipelineLayout, 0, 1, &m_compositionDescriptorSets[i], 0, nullptr);
         vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
@@ -1351,6 +1455,11 @@ void Renderer::loadImageInstance(char filePath[64], float position[3])
     m_instances++;
     vkQueueWaitIdle(m_graphicsQueue);
 
+    VkDescriptorImageInfo compositionColorImageInfo = {};
+    compositionColorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    compositionColorImageInfo.imageView = m_attachments.colorView;
+    compositionColorImageInfo.sampler = nullptr;
+
     VkDescriptorImageInfo samplerImageInfo = {};
     samplerImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     samplerImageInfo.imageView = VK_NULL_HANDLE;
@@ -1374,45 +1483,64 @@ void Renderer::loadImageInstance(char filePath[64], float position[3])
 
     for (int i = 0; i < m_swapChainImageCount; ++i)
     {
-        VkDescriptorBufferInfo descBufferInfo = {};
-        descBufferInfo.buffer = m_uniformBuffers[i];
-        descBufferInfo.offset = 0;
-        descBufferInfo.range = sizeof(UniformBufferObject);
+        {
+            VkDescriptorBufferInfo descBufferInfo = {};
+            descBufferInfo.buffer = m_uniformBuffers[i];
+            descBufferInfo.offset = 0;
+            descBufferInfo.range = sizeof(UniformBufferObject);
 
-        VkWriteDescriptorSet uboWriteDescSet = {};
-        uboWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uboWriteDescSet.dstSet = m_descriptorSets[i];
-        uboWriteDescSet.dstBinding = 0;
-        uboWriteDescSet.dstArrayElement = 0;
-        uboWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboWriteDescSet.descriptorCount = 1;
-        uboWriteDescSet.pBufferInfo = &descBufferInfo;
-        uboWriteDescSet.pImageInfo = nullptr;
-        uboWriteDescSet.pTexelBufferView = nullptr;
-        uboWriteDescSet.pNext = nullptr;
+            VkWriteDescriptorSet uboWriteDescSet = {};
+            uboWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            uboWriteDescSet.dstSet = m_descriptorSets[i];
+            uboWriteDescSet.dstBinding = 0;
+            uboWriteDescSet.dstArrayElement = 0;
+            uboWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            uboWriteDescSet.descriptorCount = 1;
+            uboWriteDescSet.pBufferInfo = &descBufferInfo;
+            uboWriteDescSet.pImageInfo = nullptr;
+            uboWriteDescSet.pTexelBufferView = nullptr;
+            uboWriteDescSet.pNext = nullptr;
 
-        VkWriteDescriptorSet samplerWriteDescSet = {};
-        samplerWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        samplerWriteDescSet.dstSet = m_descriptorSets[i];
-        samplerWriteDescSet.dstBinding = 1;
-        samplerWriteDescSet.dstArrayElement = 0;
-        samplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-        samplerWriteDescSet.descriptorCount = 1;
-        samplerWriteDescSet.pImageInfo = &samplerImageInfo;
-        samplerWriteDescSet.pNext = nullptr;
+            VkWriteDescriptorSet samplerWriteDescSet = {};
+            samplerWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            samplerWriteDescSet.dstSet = m_descriptorSets[i];
+            samplerWriteDescSet.dstBinding = 1;
+            samplerWriteDescSet.dstArrayElement = 0;
+            samplerWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+            samplerWriteDescSet.descriptorCount = 1;
+            samplerWriteDescSet.pImageInfo = &samplerImageInfo;
+            samplerWriteDescSet.pNext = nullptr;
 
-        VkWriteDescriptorSet imageWriteDescSet = {};
-        imageWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        imageWriteDescSet.dstSet = m_descriptorSets[i];
-        imageWriteDescSet.dstBinding = 2;
-        imageWriteDescSet.dstArrayElement = 0;
-        imageWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        imageWriteDescSet.descriptorCount = 64;
-        imageWriteDescSet.pImageInfo = imagesImageInfo;
-        imageWriteDescSet.pNext = nullptr;
+            VkWriteDescriptorSet imageWriteDescSet = {};
+            imageWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            imageWriteDescSet.dstSet = m_descriptorSets[i];
+            imageWriteDescSet.dstBinding = 2;
+            imageWriteDescSet.dstArrayElement = 0;
+            imageWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            imageWriteDescSet.descriptorCount = 64;
+            imageWriteDescSet.pImageInfo = imagesImageInfo;
+            imageWriteDescSet.pNext = nullptr;
 
-        VkWriteDescriptorSet writeDescSet[] = { uboWriteDescSet, samplerWriteDescSet, imageWriteDescSet };
-        vkUpdateDescriptorSets(m_device, sizeof(writeDescSet) / sizeof(VkWriteDescriptorSet), writeDescSet, 0, nullptr);
+            VkWriteDescriptorSet writeDescSet[] = { uboWriteDescSet, samplerWriteDescSet, imageWriteDescSet };
+            vkUpdateDescriptorSets(m_device, sizeof(writeDescSet) / sizeof(VkWriteDescriptorSet), writeDescSet, 0, nullptr);
+        }
+
+        {
+            // TODO: add color gradient
+
+            VkWriteDescriptorSet inputWriteDescSet = {};
+            inputWriteDescSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            inputWriteDescSet.dstSet = m_compositionDescriptorSets[i];
+            inputWriteDescSet.dstBinding = 0;
+            inputWriteDescSet.dstArrayElement = 0;
+            inputWriteDescSet.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+            inputWriteDescSet.descriptorCount = 1;
+            inputWriteDescSet.pImageInfo = &compositionColorImageInfo;
+            inputWriteDescSet.pNext = nullptr;
+            
+            VkWriteDescriptorSet writeDescSet[] = { inputWriteDescSet };
+            vkUpdateDescriptorSets(m_device, sizeof(writeDescSet) / sizeof(VkWriteDescriptorSet), writeDescSet, 0, nullptr);
+        }
     }
 
     for (int i = 0; i < m_swapChainImageCount; ++i)

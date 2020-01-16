@@ -56,6 +56,9 @@ private:
     
     VkBuffer* m_uniformBuffers;
     VkDeviceMemory* m_uniformBuffersMemory;
+    VkBuffer* m_colorBuffers;
+    VkDeviceMemory* m_colorBuffersMemory;
+
     VkDescriptorPool m_descriptorPool;
     VkDescriptorSet* m_descriptorSets;
     VkDescriptorPool m_compositionDescriptorPool; // TODO: 1 descriptor pool
@@ -79,9 +82,11 @@ private:
     VkCommandBuffer* m_imguiCommandBuffers;
 
     // TODO: remove
-    uint32_t m_instances = 2;
+    uint32_t m_instances = 3;
     mat4 model[64];
     void loadImageInstance(char filePath[64], float position[3]);
+
+    uint8_t m_colorCount = 3;
     //
 
     void init();

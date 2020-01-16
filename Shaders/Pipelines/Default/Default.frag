@@ -18,4 +18,5 @@ void main()
 {
     outColor = texture(sampler2D(mainTex[constants.instanceID], texSampler), inUV);
     outColor.xyz *= inColor;
+    outColor.xyz *= outColor.a;
 }

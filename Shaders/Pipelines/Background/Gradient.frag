@@ -6,15 +6,10 @@ layout(constant_id = 1) const bool Vertical = true; // otherwise horizontal
 
 layout (input_attachment_index = 0, set = 0, binding = 0) uniform subpassInput inColor;
 
-// layout(binding = 0) uniform Uniform // TODO: not enabled
-// {
-//     vec3 colors[ColorCount];
-// };
-vec3 colors[] = vec3[]
-(
-    vec3(1.0,0.0,0.0),
-    vec3(0.0,0.0,1.0)
-);
+layout(binding = 1) uniform Uniform
+{
+    vec4 colors[ColorCount];
+};
 
 // Azur Lane
 // vec3 colors[] = vec3[]
@@ -60,7 +55,7 @@ void main()
     int prev = int(floor(t));
     int next = int(ceil(t));
     t = (next - t) / (next - prev);
-    vec3 lerpColor = colors[prev] * t + colors[next] * (1 - t);
+    vec4 lerpColor = colors[prev] * t + colors[next] * (1 - t);
 
-    outColor = color.a * color + (1.0f - color.a) * vec4(lerpColor, 1.0);
+    outColor = color.a * color + (1.0f - color.a) * lerpColor;
 }
